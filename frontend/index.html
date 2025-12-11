@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌊 MindfulFlow - Red Social Saludable</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen">
+    <div id="app" class="container mx-auto px-4 py-8 max-w-2xl">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">
+                🌊 MindfulFlow
+            </h1>
+            <p class="text-gray-600">La red social que mejora tu vida</p>
+        </header>
+
+        <!-- Auth Section -->
+        <div id="auth-section" class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">Iniciar Sesión / Registro</h2>
+            
+            <input type="text" id="username" placeholder="Usuario" 
+                class="w-full p-3 border rounded mb-3">
+            <input type="email" id="email" placeholder="Email" 
+                class="w-full p-3 border rounded mb-3">
+            <input type="password" id="password" placeholder="Contraseña" 
+                class="w-full p-3 border rounded mb-3">
+            <input type="text" id="fullName" placeholder="Nombre Completo" 
+                class="w-full p-3 border rounded mb-4">
+            
+            <div class="flex gap-3">
+                <button onclick="register()" 
+                    class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                    Registrarse
+                </button>
+                <button onclick="login()" 
+                    class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700">
+                    Iniciar Sesión
+                </button>
+            </div>
+        </div>
+
+        <!-- User Info -->
+        <div id="user-info" class="hidden bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h3 class="text-xl font-bold mb-2">Usuario: <span id="user-name"></span></h3>
+            <p class="text-gray-600">Wellness Score: <span id="wellness-score" class="font-bold text-green-600"></span></p>
+            <button onclick="logout()" class="mt-3 bg-red-500 text-white px-4 py-2 rounded">
+                Cerrar Sesión
+            </button>
+        </div>
+
+        <!-- Create Post -->
+        <div id="create-post" class="hidden bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">Crear Post</h2>
+            <textarea id="post-content" placeholder="¿Qué quieres compartir?" 
+                class="w-full p-3 border rounded mb-3 h-32"></textarea>
+            <select id="post-category" class="w-full p-3 border rounded mb-4">
+                <option value="inspirational">Inspiracional</option>
+                <option value="educational">Educativo</option>
+                <option value="wellness">Bienestar</option>
+                <option value="creative">Creativo</option>
+                <option value="personal">Personal</option>
+            </select>
+            <button onclick="createPost()" 
+                class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700">
+                Publicar
+            </button>
+        </div>
+
+        <!-- Feed -->
+        <div id="feed" class="hidden">
+            <h2 class="text-2xl font-bold mb-4">Feed Saludable</h2>
+            <div id="posts-container"></div>
+        </div>
+
+        <!-- Messages -->
+        <div id="message" class="fixed bottom-4 right-4 hidden"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://62.84.177.147:5001/api/v1';
+        let token = localStorage.getItem('token');
+        let currentUser = null;
+
+        // Show message
+        function showMessage(msg, type = 'success') {
+            const msgDiv = document.getElementById('message');
+            msgDiv.className = `fixed bottom-4 right-4 p-4 rounded-lg shadow-lg ${
+                type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            } text-white`;
+            msgDiv.textContent = msg;
+            msgDiv.classList.remove('hidden');
+            setTimeout(() => msgDiv.classList.add('hidden'), 3000);
+        }
+
+        // Register
+        async function register() {
+            const data = {
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                fullName: document.getElementById('fullName').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    token = result.token;
+                    localStorage.setItem('token', token);
+                    currentUser = result.user;
+                    showLoggedIn();
+                    showMessage('¡Registro exitoso!');
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Error de conexión', 'error');
+            }
+        }
+
+        // Login
+        async function login() {
+            const data = {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    token = result.token;
+                    localStorage.setItem('token', token);
+                    currentUser = result.user;
+                    showLoggedIn();
+                    showMessage('¡Login exitoso!');
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Error de conexión', 'error');
+            }
+        }
+
+        // Logout
+        function logout() {
+            token = null;
+            currentUser = null;
+            localStorage.removeItem('token');
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('user-info').classList.add('hidden');
+            document.getElementById('create-post').classList.add('hidden');
+            document.getElementById('feed').classList.add('hidden');
+        }
+
+        // Show logged in state
+        function showLoggedIn() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('user-info').classList.remove('hidden');
+            document.getElementById('create-post').classList.remove('hidden');
+            document.getElementById('feed').classList.remove('hidden');
+            
+            document.getElementById('user-name').textContent = currentUser.username;
+            document.getElementById('wellness-score').textContent = currentUser.wellnessScore;
+            
+            loadFeed();
+        }
+
+        // Create post
+        async function createPost() {
+            const data = {
+                content: document.getElementById('post-content').value,
+                contentCategory: document.getElementById('post-category').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/posts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    document.getElementById('post-content').value = '';
+                    showMessage('¡Post creado!');
+                    loadFeed();
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Error de conexión', 'error');
+            }
+        }
+
+        // Load feed
+        async function loadFeed() {
+            try {
+                const res = await fetch(`${API_URL}/posts/feed`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    displayPosts(result.posts);
+                }
+            } catch (error) {
+                console.error('Error loading feed:', error);
+            }
+        }
+
+        // Display posts
+        function displayPosts(posts) {
+            const container = document.getElementById('posts-container');
+            container.innerHTML = posts.map(post => `
+                <div class="bg-white rounded-xl shadow-lg p-6 mb-4">
+                    <div class="flex items-center mb-3">
+                        <div class="bg-gradient-to-br from-blue-500 to-purple-500 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
+                            ${post.User.username[0].toUpperCase()}
+                        </div>
+                        <div class="ml-3">
+                            <div class="font-bold">${post.User.fullName}</div>
+                            <div class="text-sm text-gray-500">@${post.User.username}</div>
+                        </div>
+                        <div class="ml-auto">
+                            <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                                Wellness: ${post.wellnessScore}
+                            </span>
+                        </div>
+                    </div>
+                    <p class="text-gray-800 mb-3">${post.content}</p>
+                    <div class="flex gap-2 text-sm text-gray-500">
+                        <span>❤️ ${post.likesCount}</span>
+                        <span>💬 ${post.commentsCount}</span>
+                        <span>🔄 ${post.sharesCount}</span>
+                        <span class="ml-auto text-xs">${post.contentCategory}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Check if already logged in
+        if (token) {
+            // Verify token is still valid
+            fetch(`${API_URL}/posts/feed`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => res.json())
+            .then(result => {
+                if (result.success) {
+                    // Token is valid, but we need user info
+                    // For now, just show the feed section
+                    document.getElementById('auth-section').classList.add('hidden');
+                    document.getElementById('create-post').classList.remove('hidden');
+                    document.getElementById('feed').classList.remove('hidden');
+                    loadFeed();
+                }
+            })
+            .catch(() => {
+                localStorage.removeItem('token');
+            });
+        }
+    </script>
+</body>
+</html>
