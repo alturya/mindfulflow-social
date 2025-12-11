@@ -3,41 +3,107 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🌊 MindfulFlow - Red Social Saludable</title>
+    <title>🌊 MindfulFlow</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-purple-50 min-h-screen">
     <div id="app" class="container mx-auto px-4 py-8 max-w-2xl">
         <header class="text-center mb-8">
-            <h1 class="text-4xl font-bold text-gray-800 mb-2">
-                🌊 MindfulFlow
-            </h1>
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">🌊 MindfulFlow</h1>
             <p class="text-gray-600">La red social que mejora tu vida</p>
-            <p class="text-sm text-red-600 mt-2">⚠️ Demo Frontend - Backend en desarrollo</p>
         </header>
 
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <h2 class="text-2xl font-bold mb-4">Próximamente</h2>
-            <p class="text-gray-600 mb-4">
-                La aplicación completa estará disponible pronto. Por ahora puedes ver el código en:
-            </p>
-            <a href="https://github.com/alturya/mindfulflow-social" 
-               target="_blank"
-               class="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
-                Ver en GitHub
-            </a>
+        <div id="auth-section" class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">Iniciar Sesión / Registro</h2>
+            <input type="text" id="username" placeholder="Usuario" class="w-full p-3 border rounded mb-3">
+            <input type="email" id="email" placeholder="Email" class="w-full p-3 border rounded mb-3">
+            <input type="password" id="password" placeholder="Contraseña" class="w-full p-3 border rounded mb-3">
+            <input type="text" id="fullName" placeholder="Nombre Completo" class="w-full p-3 border rounded mb-4">
+            <div class="flex gap-3">
+                <button onclick="register()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg">Registrarse</button>
+                <button onclick="login()" class="flex-1 bg-green-600 text-white py-3 rounded-lg">Login</button>
+            </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-lg p-6">
-            <h3 class="text-xl font-bold mb-3">Características Únicas</h3>
-            <ul class="space-y-2 text-gray-700">
-                <li>✅ Algoritmo de Wellness Score</li>
-                <li>✅ Feed ordenado por bienestar mental</li>
-                <li>✅ Importación desde Instagram/TikTok</li>
-                <li>✅ Marketplace ético P2P (3% comisión)</li>
-                <li>✅ Sistema anti-adicción</li>
-            </ul>
+        <div id="user-info" class="hidden bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h3 class="text-xl font-bold mb-2">Usuario: <span id="user-name"></span></h3>
+            <p class="text-gray-600">Wellness Score: <span id="wellness-score" class="font-bold text-green-600"></span></p>
         </div>
+
+        <div id="message" class="fixed bottom-4 right-4 hidden"></div>
     </div>
+
+    <script>
+        const API_URL = '/api';
+
+        function showMessage(msg, type = 'success') {
+            const msgDiv = document.getElementById('message');
+            msgDiv.className = `fixed bottom-4 right-4 p-4 rounded-lg shadow-lg ${
+                type === 'success' ? 'bg-green-500' : 'bg-red-500'
+            } text-white`;
+            msgDiv.textContent = msg;
+            msgDiv.classList.remove('hidden');
+            setTimeout(() => msgDiv.classList.add('hidden'), 3000);
+        }
+
+        async function register() {
+            const data = {
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                fullName: document.getElementById('fullName').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    showLoggedIn(result.user);
+                    showMessage('¡Registro exitoso!');
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Error de conexión', 'error');
+            }
+        }
+
+        async function login() {
+            const data = {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                
+                if (result.success) {
+                    showLoggedIn(result.user);
+                    showMessage('¡Login exitoso!');
+                } else {
+                    showMessage(result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Error de conexión', 'error');
+            }
+        }
+
+        function showLoggedIn(user) {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('user-info').classList.remove('hidden');
+            document.getElementById('user-name').textContent = user.username;
+            document.getElementById('wellness-score').textContent = user.wellnessScore;
+        }
+    </script>
 </body>
 </html>
