@@ -13,6 +13,7 @@
             <p class="text-gray-600">La red social que mejora tu vida</p>
         </header>
 
+        <!-- Auth Section -->
         <div id="auth-section" class="bg-white rounded-xl shadow-lg p-6 mb-8">
             <h2 class="text-2xl font-bold mb-4">Iniciar Sesión / Registro</h2>
             <input type="text" id="username" placeholder="Usuario" class="w-full p-3 border rounded mb-3">
@@ -20,27 +21,65 @@
             <input type="password" id="password" placeholder="Contraseña" class="w-full p-3 border rounded mb-3">
             <input type="text" id="fullName" placeholder="Nombre Completo" class="w-full p-3 border rounded mb-4">
             <div class="flex gap-3">
-                <button onclick="register()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg">Registrarse</button>
-                <button onclick="login()" class="flex-1 bg-green-600 text-white py-3 rounded-lg">Login</button>
+                <button onclick="register()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                    Registrarse
+                </button>
+                <button onclick="login()" class="flex-1 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700">
+                    Iniciar Sesión
+                </button>
             </div>
         </div>
 
+        <!-- User Info -->
         <div id="user-info" class="hidden bg-white rounded-xl shadow-lg p-6 mb-8">
             <h3 class="text-xl font-bold mb-2">Usuario: <span id="user-name"></span></h3>
             <p class="text-gray-600">Wellness Score: <span id="wellness-score" class="font-bold text-green-600"></span></p>
+            <button onclick="logout()" class="mt-3 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                Cerrar Sesión
+            </button>
         </div>
 
-        <div id="message" class="fixed bottom-4 right-4 hidden"></div>
+        <!-- Create Post -->
+        <div id="create-post" class="hidden bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-4">Crear Post</h2>
+            <textarea id="post-content" placeholder="¿Qué quieres compartir?" 
+                class="w-full p-3 border rounded mb-3 h-32"></textarea>
+            <select id="post-category" class="w-full p-3 border rounded mb-4">
+                <option value="inspirational">😊 Inspiracional</option>
+                <option value="educational">📚 Educativo</option>
+                <option value="wellness">💚 Bienestar</option>
+                <option value="creative">🎨 Creativo</option>
+                <option value="personal">✨ Personal</option>
+            </select>
+            <button onclick="createPost()" 
+                class="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700">
+                📮 Publicar
+            </button>
+        </div>
+
+        <!-- Feed -->
+        <div id="feed" class="hidden">
+            <h2 class="text-2xl font-bold mb-4">Feed Saludable 🌊</h2>
+            <div id="posts-container"></div>
+            <div id="no-posts" class="bg-white rounded-xl shadow-lg p-8 text-center text-gray-500">
+                <p class="text-lg">¡Sé el primero en publicar algo positivo! 🌟</p>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div id="message" class="fixed bottom-4 right-4 hidden z-50"></div>
     </div>
 
     <script>
         const API_URL = '/api';
+        let currentUser = null;
+        let posts = [];
 
         function showMessage(msg, type = 'success') {
             const msgDiv = document.getElementById('message');
             msgDiv.className = `fixed bottom-4 right-4 p-4 rounded-lg shadow-lg ${
                 type === 'success' ? 'bg-green-500' : 'bg-red-500'
-            } text-white`;
+            } text-white max-w-sm`;
             msgDiv.textContent = msg;
             msgDiv.classList.remove('hidden');
             setTimeout(() => msgDiv.classList.add('hidden'), 3000);
@@ -54,6 +93,11 @@
                 fullName: document.getElementById('fullName').value
             };
 
+            if (!data.username || !data.email || !data.password || !data.fullName) {
+                showMessage('Por favor completa todos los campos', 'error');
+                return;
+            }
+
             try {
                 const res = await fetch(`${API_URL}/auth/register`, {
                     method: 'POST',
@@ -63,8 +107,9 @@
                 const result = await res.json();
                 
                 if (result.success) {
-                    showLoggedIn(result.user);
-                    showMessage('¡Registro exitoso!');
+                    currentUser = result.user;
+                    showLoggedIn();
+                    showMessage('¡Registro exitoso! 🎉');
                 } else {
                     showMessage(result.error, 'error');
                 }
@@ -79,6 +124,11 @@
                 password: document.getElementById('password').value
             };
 
+            if (!data.email || !data.password) {
+                showMessage('Por favor ingresa email y contraseña', 'error');
+                return;
+            }
+
             try {
                 const res = await fetch(`${API_URL}/auth/login`, {
                     method: 'POST',
@@ -88,8 +138,9 @@
                 const result = await res.json();
                 
                 if (result.success) {
-                    showLoggedIn(result.user);
-                    showMessage('¡Login exitoso!');
+                    currentUser = result.user;
+                    showLoggedIn();
+                    showMessage('¡Bienvenido de nuevo! 👋');
                 } else {
                     showMessage(result.error, 'error');
                 }
@@ -98,11 +149,147 @@
             }
         }
 
-        function showLoggedIn(user) {
+        function logout() {
+            currentUser = null;
+            posts = [];
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('user-info').classList.add('hidden');
+            document.getElementById('create-post').classList.add('hidden');
+            document.getElementById('feed').classList.add('hidden');
+            showMessage('Hasta pronto! 👋');
+        }
+
+        function showLoggedIn() {
             document.getElementById('auth-section').classList.add('hidden');
             document.getElementById('user-info').classList.remove('hidden');
-            document.getElementById('user-name').textContent = user.username;
-            document.getElementById('wellness-score').textContent = user.wellnessScore;
+            document.getElementById('create-post').classList.remove('hidden');
+            document.getElementById('feed').classList.remove('hidden');
+            
+            document.getElementById('user-name').textContent = currentUser.username;
+            document.getElementById('wellness-score').textContent = currentUser.wellnessScore;
+            
+            displayPosts();
+        }
+
+        function createPost() {
+            const content = document.getElementById('post-content').value;
+            const category = document.getElementById('post-category').value;
+
+            if (!content.trim()) {
+                showMessage('Escribe algo antes de publicar', 'error');
+                return;
+            }
+
+            // Calcular wellness score
+            const wellnessScore = calculateWellnessScore(content, category);
+
+            const post = {
+                id: Date.now().toString(),
+                content,
+                category,
+                wellnessScore,
+                author: currentUser.username,
+                authorId: currentUser.id,
+                likes: 0,
+                comments: 0,
+                createdAt: new Date()
+            };
+
+            posts.unshift(post);
+            document.getElementById('post-content').value = '';
+            displayPosts();
+            showMessage(`Post creado! Wellness Score: ${wellnessScore} 🌟`);
+        }
+
+        function calculateWellnessScore(content, category) {
+            let score = 50; // Base score
+
+            // Category bonus
+            const categoryScores = {
+                wellness: 20,
+                educational: 15,
+                inspirational: 15,
+                creative: 10,
+                personal: 5
+            };
+            score += categoryScores[category] || 0;
+
+            // Positive words bonus
+            const positiveWords = ['feliz', 'amor', 'gracias', 'éxito', 'salud', 'bienestar', 'paz', 'alegría'];
+            positiveWords.forEach(word => {
+                if (content.toLowerCase().includes(word)) score += 5;
+            });
+
+            // Negative words penalty
+            const negativeWords = ['odio', 'mal', 'terrible', 'horrible'];
+            negativeWords.forEach(word => {
+                if (content.toLowerCase().includes(word)) score -= 10;
+            });
+
+            return Math.max(0, Math.min(100, score));
+        }
+
+        function displayPosts() {
+            const container = document.getElementById('posts-container');
+            const noPosts = document.getElementById('no-posts');
+
+            if (posts.length === 0) {
+                container.innerHTML = '';
+                noPosts.classList.remove('hidden');
+                return;
+            }
+
+            noPosts.classList.add('hidden');
+            
+            // Sort by wellness score
+            const sortedPosts = [...posts].sort((a, b) => b.wellnessScore - a.wellnessScore);
+
+            container.innerHTML = sortedPosts.map(post => `
+                <div class="bg-white rounded-xl shadow-lg p-6 mb-4">
+                    <div class="flex items-center mb-3">
+                        <div class="bg-gradient-to-br from-blue-500 to-purple-500 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
+                            ${post.author[0].toUpperCase()}
+                        </div>
+                        <div class="ml-3 flex-1">
+                            <div class="font-bold">${post.author}</div>
+                            <div class="text-sm text-gray-500">${formatDate(post.createdAt)}</div>
+                        </div>
+                        <div>
+                            <span class="bg-green-100 text-green-800 text-xs px-3 py-1 rounded-full font-bold">
+                                Wellness: ${post.wellnessScore}
+                            </span>
+                        </div>
+                    </div>
+                    <p class="text-gray-800 mb-3">${post.content}</p>
+                    <div class="flex gap-4 text-sm text-gray-500">
+                        <span>❤️ ${post.likes}</span>
+                        <span>💬 ${post.comments}</span>
+                        <span class="ml-auto">${getCategoryIcon(post.category)} ${post.category}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getCategoryIcon(category) {
+            const icons = {
+                inspirational: '😊',
+                educational: '📚',
+                wellness: '💚',
+                creative: '🎨',
+                personal: '✨'
+            };
+            return icons[category] || '📝';
+        }
+
+        function formatDate(date) {
+            const d = new Date(date);
+            const now = new Date();
+            const diff = Math.floor((now - d) / 1000);
+
+            if (diff < 60) return 'Ahora';
+            if (diff < 3600) return `Hace ${Math.floor(diff / 60)}m`;
+            if (diff < 86400) return `Hace ${Math.floor(diff / 3600)}h`;
+            return `Hace ${Math.floor(diff / 86400)}d`;
         }
     </script>
 </body>
